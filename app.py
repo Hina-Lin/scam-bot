@@ -1,6 +1,16 @@
 from flask import Flask, request, abort
 import json
 import requests
+import logging
+import traceback
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 
 app = Flask(__name__)
 
@@ -58,14 +68,21 @@ def generate_warning(result):
 
 # === 獲取使用者基本資料 ===
 def get_user_profile(user_id):
-    url = f"https://api.line.me/v2/bot/profile/{user_id}"
-    headers = {
-        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
-    }
-    res = requests.get(url, headers=headers)
-    if res.status_code == 200:
-        return res.json()
-    return {}
+    try:
+        url = f"https://api.line.me/v2/bot/profile/{user_id}"
+        headers = {
+            "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+        }
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            return res.json()
+        else:
+            logging.warning(f"取得使用者資料失敗，狀態碼：{res.status_code}")
+    except Exception as e:
+        logging.error("[get_user_profile 錯誤]")
+        logging.error(traceback.format_exc())
+    return {}  
+
 
 # === 整合資料給模型 / API 使用 ===
 def prepare_analysis_data(user_id, message):
@@ -90,7 +107,8 @@ def callback():
 
     try:
         json_data = json.loads(body)
-        print("接收到的資料:", json_data)
+        logging.info("\n==== [Log] 接收到的資料 ====\n" + json.dumps(json_data, ensure_ascii=False, indent=2))
+
 
         events = json_data.get("events", [])
         for event in events:
@@ -104,7 +122,8 @@ def callback():
 
                 # 準備分析資料（模擬送出）
                 analysis_data = prepare_analysis_data(user_id, user_msg)
-                print(f"準備送出的分析資料：{json.dumps(analysis_data, ensure_ascii=False, indent=2)}")
+                logging.info("\n==== [Log] 準備送出的分析資料 ====\n" + json.dumps(analysis_data, ensure_ascii=False, indent=2))
+
 
                 # 分析結果
                 # result = send_to_api(analysis_data)  # 真實分析結果
@@ -117,28 +136,39 @@ def callback():
                 reply_to_user(reply_token, reply_msg)
 
     except Exception as e:
-        print("發生錯誤:", e)
+        logging.error("\n==== [Log] 發生錯誤 ====")
+        logging.error(str(e))
+        logging.error(traceback.format_exc())  
         abort(400)
+
+
 
     return "OK"
 
 # === 回傳訊息給使用者（使用 reply API） ===
 def reply_to_user(reply_token, text):
-    url = "https://api.line.me/v2/bot/message/reply"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
-    }
-    payload = {
-        "replyToken": reply_token,
-        "messages": [
-            {
-                "type": "text",
-                "text": text
-            }
-        ]
-    }
-    requests.post(url, headers=headers, data=json.dumps(payload))
+    try:
+        url = "https://api.line.me/v2/bot/message/reply"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+        }
+        payload = {
+            "replyToken": reply_token,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": text
+                }
+            ]
+        }
+        res = requests.post(url, headers=headers, data=json.dumps(payload))
+        if res.status_code != 200:
+            logging.warning(f"回傳訊息失敗，狀態碼：{res.status_code}, 回傳內容：{res.text}")
+    except Exception as e:
+        logging.error("[reply_to_user 錯誤]")
+        logging.error(traceback.format_exc())
+
 
 # === 測試首頁 ===
 @app.route("/")

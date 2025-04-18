@@ -87,7 +87,33 @@
 - Python + Flask
 - LINE Messaging API
 - Ngrok / Render 雲端部署
-- 模型串接（尚未進行）
-- Git + GitHub 版本管理
+- 模型串接（尚未串接）
 
 ---
+
+## 測試方式（目前尚未串接模型）
+
+加 LINE Bot 好友測試訊息回覆  
+https://line.me/R/ti/p/@572bgqwq
+
+目前使用簡單關鍵字模擬分析結果：  
+（之後會換成串接 API）
+
+```python
+def analyze_text(text):
+    scam_keywords = [
+        "怎麼投資", "怎麼給你", "錢怎麼轉",
+        "要匯到哪", "我相信你", "我沒有別人可以相信了"
+    ]
+    if any(word in text for word in scam_keywords):
+        return {
+            "label": "scam",
+            "confidence": 0.9,
+            "reply": "這是我投資成功的故事，你想聽嗎？"
+        }
+    else:
+        return {
+            "label": "safe",
+            "confidence": 0.1,
+            "reply": "哈哈你說得真有趣，我懂你！"
+        }

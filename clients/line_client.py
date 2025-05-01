@@ -17,12 +17,6 @@ class LineClient:
     """與 LINE API 互動的客戶端"""
     
     def __init__(self, channel_access_token):
-        """
-        初始化 LINE 客戶端。
-        
-        Args:
-            channel_access_token: 用於認證的 LINE 渠道訪問令牌
-        """
         self.channel_access_token = channel_access_token
         self.headers = {
             "Content-Type": "application/json",

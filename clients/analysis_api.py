@@ -17,12 +17,6 @@ class AnalysisApiClient:
     """與外部詐騙分析 API 互動的客戶端"""
     
     def __init__(self, api_url=None):
-        """
-        初始化分析 API 客戶端。
-        
-        Args:
-            api_url: 外部分析 API 的 URL（可選）
-        """
         self.api_url = api_url
         self.headers = {"Content-Type": "application/json"}
     
@@ -77,12 +71,6 @@ class AnalysisApiClient:
             raise ApiError(error_msg, original_error=e)
     
     def is_configured(self):
-        """
-        檢查 API 客戶端是否正確配置。
-        
-        Returns:
-            bool: 如果設置了 API URL 則為 True，否則為 False
-        """
         is_configured = self.api_url is not None and self.api_url.strip() != ""
         logger.info(f"API 客戶端配置狀態: {'已配置' if is_configured else '未配置'}")
         return is_configured

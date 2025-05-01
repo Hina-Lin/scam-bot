@@ -41,7 +41,7 @@ class CustomFormatter(logging.Formatter):
         
         return f"[{level}] {module}, {message}"
 
-def setup_logger(name, level=logging.INFO, enable_file_log=True):
+def setup_logger(name, level=logging.INFO, enable_file_log=False):
     """
     設定日誌記錄器，支援終端機和檔案兩種模式
     
@@ -85,44 +85,14 @@ def setup_logger(name, level=logging.INFO, enable_file_log=True):
 app_logger = setup_logger("scam_bot")
 
 # 定義一些便利函數來快速建立特定模組的日誌記錄器
-def get_api_logger(module_name=None, enable_file_log=True):
-    """
-    建立 API 層的日誌記錄器
-    
-    Args:
-        module_name: 模組名稱（可選）
-        enable_file_log: 是否啟用檔案記錄（預設：是）
-        
-    Returns:
-        logging.Logger: API 層的日誌記錄器
-    """
+def get_api_logger(module_name=None, enable_file_log=False):
     name = f"api.{module_name}" if module_name else "api"
     return setup_logger(name, enable_file_log=enable_file_log)
 
-def get_service_logger(module_name=None, enable_file_log=True):
-    """
-    建立服務層的日誌記錄器
-    
-    Args:
-        module_name: 模組名稱（可選）
-        enable_file_log: 是否啟用檔案記錄（預設：是）
-        
-    Returns:
-        logging.Logger: 服務層的日誌記錄器
-    """
+def get_service_logger(module_name=None, enable_file_log=False):
     name = f"services.{module_name}" if module_name else "services"
     return setup_logger(name, enable_file_log=enable_file_log)
 
-def get_client_logger(module_name=None, enable_file_log=True):
-    """
-    建立客戶端層的日誌記錄器
-    
-    Args:
-        module_name: 模組名稱（可選）
-        enable_file_log: 是否啟用檔案記錄（預設：是）
-        
-    Returns:
-        logging.Logger: 客戶端層的日誌記錄器
-    """
+def get_client_logger(module_name=None, enable_file_log=False):
     name = f"clients.{module_name}" if module_name else "clients"
     return setup_logger(name, enable_file_log=enable_file_log)

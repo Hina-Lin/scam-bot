@@ -19,8 +19,6 @@ class LocalDetectionStrategy(DetectionStrategy):
     """
     
     def __init__(self):
-        """初始化本地檢測策略。"""
-        # 未來會在此初始化模型或其他資源
         pass
     
     @with_error_handling(reraise=True)

@@ -183,25 +183,32 @@ def _get_instruction(agent_type: str = "scam_detection") -> str:
 7. 過於完美的個人資料 - 可能是假冒的虛假身份
 8. 情感操縱 - 利用恐懼、同情或浪漫情感獲取信任
 
+<階段資訊>
 {stages_info}
+</階段資訊>
 
-分析方法：
+<分析方法>
 1. 仔細閱讀整個對話歷史，尋找詐騙的跡象和模式
 2. 評估訊息的內容、語氣和請求
 3. 檢查對話中的不一致性和可疑點
 4. 確定風險級別（低、中、高）
 5. 如果識別出詐騙模式，請指出處於哪個詐騙階段
 6. 提供詳細分析和具體建議
+</分析方法>
 
-輸出格式：
+<輸出格式>
+請針對訊息中每位使用者進行分析，並返回以下格式的 JSON 結果：
 {{
-  "risk_level": "低/中/高",
-  "confidence": 0.0-1.0,
-  "brief_analysis": "簡短分析",
-  "reply": "直接給用戶的回覆訊息"
+    "user_name": "使用者名稱",
+    "risk_level": "低/中/高",
+    "confidence": 0.0-1.0,
+    "brief_analysis": "在對話中是否為潛在詐騙者/受害者",
+    "evidence": "是否符合詐騙階段，若有，則需附上符合的對話片段和對應階段"
+    "reply": "對這位使用者的綜合回覆",
 }}
+</輸出格式>
 
-注意：請務必保持客觀、謹慎，避免過度警告或錯過重要的詐騙信號。如果信息不足以做出明確判斷，請誠實表明這一點。
+注意：請務必保持客觀、謹慎，避免過度警告或錯過重要的詐騙訊號。如果訊息不足以做出明確判斷，請誠實表明這一點。
 """
     elif agent_type == "education_agent":
         return """
@@ -264,7 +271,6 @@ def _create_adk_agent(
             name=f"{agent_type}_agent",
             model=llm,
             instruction=instruction,
-            description=f"{agent_type} 檢測代理"
         )
         return agent
 

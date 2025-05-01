@@ -47,7 +47,7 @@ class ApiDetectionStrategy(DetectionStrategy):
             logger.error(error_msg)
             raise DetectionError(error_msg, status_code=400)
         
-        # 準備 API 的數據 (不再包含 chat_history)
+        # 準備 API 的數據
         analysis_data = {
             "user_id": user_id,
             "message": message_text,

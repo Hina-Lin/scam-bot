@@ -30,9 +30,8 @@ class DetectionService:
             self.strategy = ApiDetectionStrategy(analysis_client)
             logger.info("使用 API 檢測策略")
         else:
-            # 使用增強的本地檢測策略（基於ADK agent和相似度分析）
             self.strategy = LocalDetectionStrategy()
-            logger.info("使用增強的本地檢測策略（包含ADK agent和相似度分析）")
+            logger.info("使用增本地檢測策略")
     
     def analyze_message(self, message_text: str, user_id: Optional[str] = None, 
                       chat_history: Optional[List[str]] = None, 
@@ -54,11 +53,9 @@ class DetectionService:
         """
         try:
             # 呼叫當前策略的 analyze 方法
-            # 注意：兩個策略 (Local 和 API) 現在都不接受 chat_history
             logger.debug(f"呼叫策略 {type(self.strategy).__name__} 的 analyze 方法")
             return self.strategy.analyze(message_text, user_id=user_id, user_profile=user_profile)
         except Exception as e:
-            # 記錄詳細錯誤，包括策略類型
             strategy_type = type(self.strategy).__name__
             logger.error(f"使用 {strategy_type} 進行檢測時發生錯誤: {str(e)}", exc_info=True)
             raise

@@ -14,7 +14,7 @@ from pathlib import Path
 from .base import DetectionStrategy
 from utils.logger import get_service_logger
 from utils.error_handler import DetectionError, ValidationError, with_error_handling
-from utils.conversation_formatter import validate_line_export # Import the new function
+from utils.validator import validate_line_export
 from utils.agents.agent_factory import create_agent
 
 # 設定預設資料檔案路徑
@@ -126,52 +126,24 @@ class LocalDetectionStrategy(DetectionStrategy):
         try:
             # 步驟 1: 驗證輸入是否為 LINE 匯出格式
             try:
-                # 使用新的驗證函數，如果驗證失敗會拋出 ValidationError
                 validated_text = validate_line_export(message_text)
                 logger.debug("LINE 匯出格式驗證通過。")
             except ValidationError as ve:
-                # 捕獲驗證錯誤並重新拋出，中斷流程
                 logger.warning(f"輸入格式驗證失敗: {str(ve)}")
-                raise # 重新拋出以觸發上層的錯誤處理
+                raise 
 
-            # 步驟 2: (可選) 基於關鍵詞的快速掃描 (如果需要的話，可以保留或移除)
-            # 注意：這裡的 keyword_analysis 仍然作用於原始的 message_text
+            # 步驟 2: (可選) 基於關鍵詞的快速掃描 
             keyword_result = self._keyword_analysis(validated_text)
 
             # 步驟 3: 使用 agent 進行深度分析，直接傳遞驗證後的原始文字
             logger.debug("將驗證後的原始文字傳遞給 agent 進行分析。")
-            agent_result = self.agent(validated_text, user_id) # 直接傳遞字串
+            agent_result_list = self.agent(validated_text, user_id) # agent 返回的是列表
 
-            # 步驟 4: 綜合分析結果 (這裡可以根據需要調整，例如只依賴 agent 結果)
-            # 簡化：主要依賴 agent 的結果
-            label = agent_result.get("label", "safe") # 從 agent 結果獲取標籤
-            confidence = agent_result.get("confidence", 0.0) # 從 agent 結果獲取信賴度
-            reply = agent_result.get("reply", "分析完成。") # 從 agent 結果獲取回覆
-
-            # (可選) 根據 agent 結果調整回覆或添加警告
-            if label == "scam":
-                reply = f"[警告] 分析結果顯示這可能是詐騙！\n\n{reply}"
-            elif label == "suspicious":
-                 reply = f"[注意] 分析結果顯示這則訊息可疑。\n\n{reply}"
-
-            # 記錄結果
-            logger.info(f"分析完成，標籤: {label}, 可信度: {confidence:.2f}")
-
-            # 返回結果
-            return {
-                "label": label,
-                "confidence": confidence,
-                "reply": reply,
-                "analysis": {
-                    "keyword_analysis": keyword_result, # 保留關鍵詞分析結果供參考
-                    "agent_analysis": agent_result
-                }
-            }
+            return agent_result_list
         except ValidationError as ve:
-            # 直接重新拋出驗證錯誤，由上層處理
             logger.warning(f"輸入格式驗證失敗，向上拋出錯誤: {str(ve)}")
             raise
         except Exception as e:
             error_msg = f"本地檢測過程中發生未預期錯誤: {str(e)}"
-            logger.error(error_msg, exc_info=True) # 記錄詳細的 traceback
+            logger.error(error_msg, exc_info=True)
             raise DetectionError(error_msg, original_error=e)

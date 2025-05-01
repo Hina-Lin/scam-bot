@@ -17,7 +17,6 @@ from utils.error_handler import AppError, ConfigError
 # 導入服務
 from services.conversation_service import ConversationService
 from services.domain.detection.detection_service import DetectionService
-from services.domain.storage_service import StorageService
 
 # 導入客戶端
 from clients.line_client import LineClient
@@ -77,10 +76,8 @@ def create_app():
         
         # 初始化服務
         detection_service = DetectionService(analysis_client)
-        storage_service = StorageService()
         conversation_service = ConversationService(
             detection_service=detection_service,
-            storage_service=storage_service,
             line_client=line_client
         )
         
@@ -113,8 +110,7 @@ def create_app():
             "status": "ok",
             "services": {
                 "line_client": "ok",
-                "detection_service": "ok",
-                "storage_service": "ok"
+                "detection_service": "ok"
             }
         })
     

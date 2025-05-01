@@ -153,9 +153,6 @@ class LineWebhookHandler:
                     # 只記錄訊息，不進行回應
                     logger.info(f"記錄重新傳送的訊息，來自 {user_id} 的 {message['type']} 類型訊息")
                     
-                    # 只儲存訊息，不處理回應
-                    if message["type"] == "text" and "text" in message:
-                        self.conversation_service.storage_service.add_message(user_id, message["text"])
                 return
             
             # 確認事件格式

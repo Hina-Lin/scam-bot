@@ -4,9 +4,10 @@
 這是詐騙檢測機器人應用程式的主要入口點。
 它設置了 Flask 應用程式並初始化所有服務和組件。
 """
+import os
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 from flask import Flask, jsonify
-import os
 
 # 導入配置
 from config import Config
@@ -17,7 +18,7 @@ from utils.error_handler import AppError, ConfigError
 
 # 導入服務
 from services.conversation_service import ConversationService
-from services.domain.detection_service import DetectionService
+from services.domain.detection.detection_service import DetectionService
 from services.domain.storage_service import StorageService
 
 # 導入客戶端

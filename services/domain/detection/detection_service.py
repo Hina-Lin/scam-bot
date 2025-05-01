@@ -5,6 +5,7 @@
 作為入口點，根據配置選擇使用 API 或本地檢測策略。
 """
 
+from typing import Dict, List, Any, Optional
 from utils.logger import get_service_logger
 from .local_detection import LocalDetectionStrategy
 from .api_detection import ApiDetectionStrategy
@@ -12,11 +13,12 @@ from .api_detection import ApiDetectionStrategy
 # 取得模組特定的日誌記錄器
 logger = get_service_logger("detection")
 
-# === 主要入口點 ===
+# === 主要接口和實現 ===
+
 class DetectionService:
     """詐騙檢測服務，根據配置選擇使用 API 或本地檢測策略"""
     
-    def __init__(self, analysis_client=None):
+    def __init__(self, analysis_client: Optional[Any] = None):
         """
         初始化檢測服務，根據是否有 API 客戶端來選擇適當的策略。
         
@@ -28,10 +30,13 @@ class DetectionService:
             self.strategy = ApiDetectionStrategy(analysis_client)
             logger.info("使用 API 檢測策略")
         else:
+            # 使用增強的本地檢測策略（基於ADK agent和相似度分析）
             self.strategy = LocalDetectionStrategy()
-            logger.info("使用本地檢測策略")
+            logger.info("使用增強的本地檢測策略（包含ADK agent和相似度分析）")
     
-    def analyze_message(self, message_text, user_id=None, chat_history=None, user_profile=None):
+    def analyze_message(self, message_text: str, user_id: Optional[str] = None, 
+                      chat_history: Optional[List[str]] = None, 
+                      user_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         分析訊息以檢測是否為潛在詐騙。
         
@@ -42,7 +47,7 @@ class DetectionService:
             user_profile: 可選的使用者資料
             
         Returns:
-            dict: 包含標籤、可信度和回覆的分析結果
+            Dict[str, Any]: 包含標籤、可信度和回覆的分析結果
             
         Raises:
             Exception: 如果檢測過程中發生錯誤
@@ -52,3 +57,4 @@ class DetectionService:
         except Exception as e:
             logger.error(f"檢測過程中發生錯誤: {str(e)}")
             raise
+

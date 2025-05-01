@@ -5,17 +5,17 @@
 它負責編排詐騙檢測和生成適當的回應。
 """
 
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, Any
 from utils.logger import get_service_logger
-from utils.error_handler import AppError, with_error_handling, DetectionError
-from services.domain.detection_service import DetectionService
+from utils.error_handler import AppError, with_error_handling
+from services.domain.detection.detection_service import DetectionService
 from services.domain.storage_service import StorageService
 from clients.line_client import LineClient
 
 # 取得模組特定的日誌記錄器
 logger = get_service_logger("conversation")
 
-# === 主要入口點 ===
+# === 主要接口和方法 ===
 class ConversationService:
     """應用服務，管理對話流程，協調檢測和回應生成"""
     
@@ -168,7 +168,7 @@ class ConversationService:
             logger.error(error_msg)
             raise AppError(error_msg, original_error=e)
 
-    # === 輔助方法 ===
+# === 輔助方法 ===
     def _generate_response(self, detection_result: Dict[str, Any]) -> str:
         """
         根據檢測結果生成回應。
@@ -183,7 +183,7 @@ class ConversationService:
         reply = detection_result.get("reply", "")
         
         # 如果可能是詐騙，添加警告
-        if detection_result.get("label") == "scam" and detection_result.get("confidence", 0) > 0.7:
+        if detection_result.get("label") == "scam" and detection_result.get("confidence", 0) >= 0.6:
             confidence = detection_result.get("confidence", 0)
             warning = f"[警示] 您可能正被詐騙，請提高警覺（可信度 {confidence * 100:.1f}%）"
             reply = f"{reply}\n{warning}"

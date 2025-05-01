@@ -127,3 +127,17 @@ def get_client_logger(module_name=None, enable_file_log=False):
     else:
         name = "clients"
     return setup_logger(name, enable_file_log=enable_file_log)
+
+def get_utils_logger(module_name=None, enable_file_log=False):
+    if module_name:
+        name = f"utils/{module_name}"
+    else:
+        name = "utils"
+    return setup_logger(name, enable_file_log=enable_file_log)
+
+def get_adk_logger(module_name=None, enable_file_log=False):
+    if module_name:
+        name = f"adk/{module_name}"
+    else:
+        name = "adk"
+    return setup_logger(name, enable_file_log=enable_file_log)

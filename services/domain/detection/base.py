@@ -1,10 +1,3 @@
-"""
-檢測策略抽象介面
-
-此模組定義了詐騙檢測策略的抽象介面。
-所有具體的檢測策略實現必須符合此介面。
-"""
-
 from abc import ABC, abstractmethod
 
 class DetectionStrategy(ABC):

@@ -16,11 +16,22 @@ os.makedirs(LOG_DIR, exist_ok=True)
 class CustomFormatter(logging.Formatter):
     """
     自定義日誌格式化工具，用於終端機輸出
+    並依照日誌級別顯示不同顏色
     """
+    
+    # 定義顏色代碼
+    COLORS = {
+        'DEBUG': '\033[94m',      # 淡藍色
+        'INFO': '\033[92m',       # 綠色
+        'WARNING': '\033[93m',    # 黃色
+        'ERROR': '\033[91m',      # 紅色
+        'CRITICAL': '\033[1;91m'  # 粗體紅色
+    }
+    RESET = '\033[0m'             # 重置顏色
     
     def format(self, record):
         """
-        自訂終端機輸出格式： [LEVEL] MODULE, MESSAGE
+        自訂終端機輸出格式，依照級別顯示不同顏色
         
         Args:
             record: 日誌記錄
@@ -28,8 +39,17 @@ class CustomFormatter(logging.Formatter):
         Returns:
             str: 格式化後的日誌字串
         """
+        # 取得級別和模組名稱
+        level_name = record.levelname
+        color = self.COLORS.get(level_name, self.RESET)
+        
+        # 取得模組名稱並簡化顯示
         module = record.name
-        level = record.levelname
+        # 移除主資料夾前綴，進行簡化顯示
+        if '.' in module:
+            module = module.split('.')[-1]  # 只取最後一部分
+        
+        # 取得訊息
         message = record.msg
         
         # 如果是 % 格式化，則需要先格式化訊息
@@ -39,7 +59,8 @@ class CustomFormatter(logging.Formatter):
             except (TypeError, ValueError):
                 pass
         
-        return f"[{level}] {module}, {message}"
+        # 建立帶顏色的格式化訊息
+        return f"{color}[• {level_name}]{self.RESET} [{module}] {message}"
 
 def setup_logger(name, level=logging.INFO, enable_file_log=False):
     """
@@ -85,14 +106,24 @@ def setup_logger(name, level=logging.INFO, enable_file_log=False):
 app_logger = setup_logger("scam_bot")
 
 # 定義一些便利函數來快速建立特定模組的日誌記錄器
+# 使用更直覺的命名方式
 def get_api_logger(module_name=None, enable_file_log=False):
-    name = f"api.{module_name}" if module_name else "api"
+    if module_name:
+        name = f"api/{module_name}"
+    else:
+        name = "api"
     return setup_logger(name, enable_file_log=enable_file_log)
 
 def get_service_logger(module_name=None, enable_file_log=False):
-    name = f"services.{module_name}" if module_name else "services"
+    if module_name:
+        name = f"services/{module_name}"
+    else:
+        name = "services"
     return setup_logger(name, enable_file_log=enable_file_log)
 
 def get_client_logger(module_name=None, enable_file_log=False):
-    name = f"clients.{module_name}" if module_name else "clients"
+    if module_name:
+        name = f"clients/{module_name}"
+    else:
+        name = "clients"
     return setup_logger(name, enable_file_log=enable_file_log)

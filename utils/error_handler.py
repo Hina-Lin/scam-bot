@@ -28,7 +28,7 @@ class AppError(Exception):
     """
     應用程式錯誤基類
     
-    提供統一的錯誤格式和分類機制，方便在不同層級間傳遞錯誤信息。
+    提供統一的錯誤格式和分類機制，方便在不同層級間傳遞錯誤訊息。
     """
     
     def __init__(self, message, error_type=ErrorType.UNKNOWN, status_code=500, original_error=None):
@@ -65,7 +65,7 @@ class AppError(Exception):
             "status_code": self.status_code
         }
         
-        # 只在開發環境中包含原始錯誤信息
+        # 只在開發環境中包含原始錯誤訊息
         # TODO: 根據環境變數決定是否包含堆疊資訊
         if self.original_error:
             error_dict["original_error"] = str(self.original_error)
@@ -139,7 +139,7 @@ def handle_error(error, reraise=True):
         else:
             app_error = AppError(f"未知錯誤: {error_message}", original_error=error)
     
-    # 記錄錯誤信息
+    # 記錄錯誤訊息
     logger.error(str(app_error))
     
     # 記錄完整的堆疊跟蹤

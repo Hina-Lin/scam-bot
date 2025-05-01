@@ -51,5 +51,4 @@ class DetectionService:
             return self.strategy.analyze(message_text, user_id, chat_history, user_profile)
         except Exception as e:
             logger.error(f"檢測過程中發生錯誤: {str(e)}")
-            # 重新拋出異常，讓上層處理
             raise

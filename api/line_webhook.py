@@ -8,16 +8,21 @@ LINE Webhook API 處理器
 - POST /callback: 接收 LINE 平台的 webhook 事件
 """
 
+from typing import Dict, List, Any, Optional
 from flask import Blueprint, request, abort, jsonify
 import json
 from utils.logger import get_api_logger
 from utils.error_handler import AppError, LineError, with_error_handling
+from services.conversation_service import ConversationService
 
 # 取得模組特定的日誌記錄器
 logger = get_api_logger("line_webhook")
 
 # 為 LINE webhook 創建 Flask 藍圖
 line_webhook = Blueprint('line_webhook', __name__)
+
+# 對藍圖添加處理器屬性
+line_webhook.webhook_handler = None 
 
 # === API 端點定義 ===
 @line_webhook.route("/callback", methods=["POST"])
@@ -30,7 +35,7 @@ def callback():
     """
     try:
         # 從 Flask 應用程式上下文獲取處理器
-        handler = line_webhook.webhook_handler
+        handler = line_webhook.webhook_handler  # type: LineWebhookHandler
         
         # 處理請求
         body = request.get_data(as_text=True)
@@ -47,7 +52,7 @@ def callback():
 class LineWebhookHandler:
     """LINE webhook 事件的處理器。"""
     
-    def __init__(self, conversation_service, channel_secret):
+    def __init__(self, conversation_service: ConversationService, channel_secret: str):
         """
         初始化 webhook 處理器。
         
@@ -59,7 +64,7 @@ class LineWebhookHandler:
         self.channel_secret = channel_secret
     
     @with_error_handling(reraise=True)
-    def handle_webhook(self, request_data):
+    def handle_webhook(self, request_data: str) -> str:
         """
         處理來自 LINE 的 webhook 請求。
         
@@ -100,7 +105,7 @@ class LineWebhookHandler:
             raise LineError(error_msg, original_error=e)
     
     @with_error_handling(reraise=True)
-    def _process_event(self, event):
+    def _process_event(self, event: Dict[str, Any]) -> None:
         """
         處理單個 LINE 事件。
         
@@ -115,29 +120,31 @@ class LineWebhookHandler:
             if "type" not in event:
                 raise LineError("事件缺少 'type' 字段", status_code=400)
                 
-            # 目前僅處理含文本內容的訊息事件
-            if event["type"] == "message" and event["message"]["type"] == "text":
+            # 只處理訊息事件，其它類型的事件記錄但不處理
+            if event["type"] == "message":
+                # 基本驗證
                 if "replyToken" not in event:
                     raise LineError("訊息事件缺少 'replyToken' 字段", status_code=400)
-                if "text" not in event["message"]:
-                    raise LineError("文本訊息缺少 'text' 字段", status_code=400)
                 if "userId" not in event.get("source", {}):
                     raise LineError("事件來源缺少 'userId' 字段", status_code=400)
-                    
-                reply_token = event["replyToken"]
-                user_msg = event["message"]["text"]
+                
+                # 取出基本訊息
                 user_id = event["source"]["userId"]
+                reply_token = event["replyToken"]
+                message = event["message"]
                 
-                logger.info(f"收到來自 {user_id} 的訊息: {user_msg}")
+                # 記錄事件
+                logger.info(f"收到來自 {user_id} 的 {message['type']} 類型訊息")
                 
-                # 轉發到對話服務
-                self.conversation_service.process_message(
-                    user_id=user_id, 
-                    message_text=user_msg, 
-                    reply_token=reply_token
+                # 將整個事件轉發到對話服務，由服務層處理不同類型的訊息
+                self.conversation_service.process_event(
+                    user_id=user_id,
+                    reply_token=reply_token,
+                    event_type="message",
+                    message=message
                 )
             else:
-                logger.info(f"收到不支援的事件類型: {event.get('type')} / {event.get('message', {}).get('type')}")
+                logger.info(f"收到不支援的事件類型: {event.get('type')}")
                 
         except Exception as e:
             error_msg = f"處理事件時發生錯誤: {str(e)}"

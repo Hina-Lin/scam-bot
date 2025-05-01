@@ -11,11 +11,9 @@ from utils.logger import get_service_logger
 # 取得模組特定的日誌記錄器
 logger = get_service_logger("storage")
 
+# === 主要入口點 ===
 class StorageService:
-    """
-    管理對話儲存的服務。
-    目前實現記憶體儲存。
-    """
+    """管理對話儲存的服務，目前實現記憶體儲存"""
     
     def __init__(self):
         """初始化儲存服務，建立空的聊天歷史。"""

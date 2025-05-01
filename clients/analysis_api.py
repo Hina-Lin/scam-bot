@@ -7,16 +7,14 @@
 
 import requests
 import json
-import traceback
 from utils.logger import get_client_logger
+from utils.error_handler import ApiError, with_error_handling
 
 # 取得模組特定的日誌記錄器
 logger = get_client_logger("analysis_api")
 
 class AnalysisApiClient:
-    """
-    與外部詐騙分析 API 互動的客戶端。
-    """
+    """與外部詐騙分析 API 互動的客戶端"""
     
     def __init__(self, api_url=None):
         """
@@ -28,6 +26,7 @@ class AnalysisApiClient:
         self.api_url = api_url
         self.headers = {"Content-Type": "application/json"}
     
+    @with_error_handling(reraise=True)
     def analyze_text(self, data):
         """
         發送資料到外部 API 進行詐騙分析。
@@ -39,11 +38,11 @@ class AnalysisApiClient:
             dict: 包含標籤、可信度和回覆的分析結果
             
         Raises:
-            Exception: 如果 API 未配置或返回錯誤
+            ApiError: 如果 API 未配置或返回錯誤
         """
         if not self.api_url:
             logger.error("API URL 未配置")
-            raise Exception("API URL 未配置")
+            raise ApiError("API URL 未配置", status_code=400)
         
         try:
             logger.info(f"發送資料到分析 API: {self.api_url}")
@@ -58,13 +57,24 @@ class AnalysisApiClient:
                 logger.info("成功從 API 獲取分析結果")
                 return response.json()
             else:
-                logger.error(f"API 回應錯誤：{response.status_code}")
-                raise Exception(f"API 返回狀態碼 {response.status_code}")
+                error_msg = f"API 回應錯誤：{response.status_code}"
+                logger.error(error_msg)
+                if response.text:
+                    logger.error(f"API 回應內容：{response.text}")
+                raise ApiError(error_msg, status_code=response.status_code)
                 
+        except requests.RequestException as e:
+            error_msg = f"API 請求異常：{str(e)}"
+            logger.error(error_msg)
+            raise ApiError(error_msg, original_error=e)
+        except json.JSONDecodeError as e:
+            error_msg = f"API 回應解析失敗：{str(e)}"
+            logger.error(error_msg)
+            raise ApiError(error_msg, original_error=e)
         except Exception as e:
-            logger.error(f"發送資料到 API 時發生錯誤：{e}")
-            logger.error(traceback.format_exc())
-            raise
+            error_msg = f"發送資料到 API 時發生未知錯誤：{str(e)}"
+            logger.error(error_msg)
+            raise ApiError(error_msg, original_error=e)
     
     def is_configured(self):
         """

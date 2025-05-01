@@ -7,16 +7,14 @@ LINE API 客戶端
 
 import requests
 import json
-import traceback
 from utils.logger import get_client_logger
+from utils.error_handler import LineError, with_error_handling
 
 # 取得模組特定的日誌記錄器
 logger = get_client_logger("line")
 
 class LineClient:
-    """
-    與 LINE API 互動的客戶端。
-    """
+    """與 LINE API 互動的客戶端"""
     
     def __init__(self, channel_access_token):
         """
@@ -31,6 +29,7 @@ class LineClient:
             "Authorization": f"Bearer {channel_access_token}"
         }
     
+    @with_error_handling(reraise=True)
     def reply_message(self, reply_token, text):
         """
         使用 LINE Messaging API 回覆使用者訊息。
@@ -40,39 +39,40 @@ class LineClient:
             text: 要發送的文字訊息
             
         Returns:
-            bool: 成功則為 True，否則為 False
+            bool: 成功則為 True
+            
+        Raises:
+            LineError: 如果發送失敗
         """
-        try:
-            url = "https://api.line.me/v2/bot/message/reply"
-            payload = {
-                "replyToken": reply_token,
-                "messages": [
-                    {
-                        "type": "text",
-                        "text": text
-                    }
-                ]
-            }
-            
-            logger.info(f"回覆訊息: {text[:30]}...")
-            response = requests.post(
-                url, 
-                headers=self.headers, 
-                data=json.dumps(payload)
-            )
-            
-            if response.status_code == 200:
-                logger.info("訊息回覆成功")
-                return True
-            else:
-                logger.error(f"回覆訊息失敗，狀態碼：{response.status_code}, 回覆內容：{response.text}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"回覆訊息時發生錯誤: {e}")
-            logger.error(traceback.format_exc())
-            return False
+        url = "https://api.line.me/v2/bot/message/reply"
+        payload = {
+            "replyToken": reply_token,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": text
+                }
+            ]
+        }
+        
+        logger.info(f"回覆訊息: {text[:30]}...")
+        response = requests.post(
+            url, 
+            headers=self.headers, 
+            data=json.dumps(payload)
+        )
+        
+        if response.status_code == 200:
+            logger.info("訊息回覆成功")
+            return True
+        else:
+            error_msg = f"回覆訊息失敗，狀態碼：{response.status_code}"
+            if response.text:
+                error_msg += f", 回覆內容：{response.text}"
+            logger.error(error_msg)
+            raise LineError(error_msg, status_code=response.status_code)
     
+    @with_error_handling(reraise=True)
     def get_profile(self, user_id):
         """
         從 LINE 獲取使用者的資料。
@@ -81,26 +81,25 @@ class LineClient:
             user_id: LINE 使用者 ID
             
         Returns:
-            dict: 使用者資料或如果失敗則為空字典
+            dict: 使用者資料
+            
+        Raises:
+            LineError: 如果獲取失敗
         """
-        try:
-            url = f"https://api.line.me/v2/bot/profile/{user_id}"
-            
-            logger.info(f"獲取使用者 {user_id} 的資料")
-            response = requests.get(url, headers=self.headers)
-            
-            if response.status_code == 200:
-                logger.info("成功獲取使用者資料")
-                return response.json()
-            else:
-                logger.warning(f"獲取使用者資料失敗，狀態碼：{response.status_code}")
-                return {}
-                
-        except Exception as e:
-            logger.error(f"獲取使用者資料時發生錯誤: {e}")
-            logger.error(traceback.format_exc())
-            return {}
+        url = f"https://api.line.me/v2/bot/profile/{user_id}"
+        
+        logger.info(f"獲取使用者 {user_id} 的資料")
+        response = requests.get(url, headers=self.headers)
+        
+        if response.status_code == 200:
+            logger.info("成功獲取使用者資料")
+            return response.json()
+        else:
+            error_msg = f"獲取使用者資料失敗，狀態碼：{response.status_code}"
+            logger.error(error_msg)
+            raise LineError(error_msg, status_code=response.status_code)
     
+    @with_error_handling(reraise=True)
     def push_message(self, user_id, text):
         """
         向使用者推送訊息，無需回覆令牌。
@@ -110,35 +109,35 @@ class LineClient:
             text: 要發送的文字訊息
             
         Returns:
-            bool: 成功則為 True，否則為 False
+            bool: 成功則為 True
+            
+        Raises:
+            LineError: 如果發送失敗
         """
-        try:
-            url = "https://api.line.me/v2/bot/message/push"
-            payload = {
-                "to": user_id,
-                "messages": [
-                    {
-                        "type": "text",
-                        "text": text
-                    }
-                ]
-            }
-            
-            logger.info(f"向使用者 {user_id} 推送訊息")
-            response = requests.post(
-                url, 
-                headers=self.headers, 
-                data=json.dumps(payload)
-            )
-            
-            if response.status_code == 200:
-                logger.info("訊息推送成功")
-                return True
-            else:
-                logger.error(f"推送訊息失敗，狀態碼：{response.status_code}, 回覆內容：{response.text}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"推送訊息時發生錯誤: {e}")
-            logger.error(traceback.format_exc())
-            return False
+        url = "https://api.line.me/v2/bot/message/push"
+        payload = {
+            "to": user_id,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": text
+                }
+            ]
+        }
+        
+        logger.info(f"向使用者 {user_id} 推送訊息")
+        response = requests.post(
+            url, 
+            headers=self.headers, 
+            data=json.dumps(payload)
+        )
+        
+        if response.status_code == 200:
+            logger.info("訊息推送成功")
+            return True
+        else:
+            error_msg = f"推送訊息失敗，狀態碼：{response.status_code}"
+            if response.text:
+                error_msg += f", 回覆內容：{response.text}"
+            logger.error(error_msg)
+            raise LineError(error_msg, status_code=response.status_code)

@@ -62,7 +62,7 @@ class CustomFormatter(logging.Formatter):
         # 建立帶顏色的格式化訊息
         return f"{color}[• {level_name}]{self.RESET} [{module}] {message}"
 
-def setup_logger(name, level=logging.INFO, enable_file_log=False):
+def setup_logger(name, level=logging.DEBUG, enable_file_log=False):
     """
     設定日誌記錄器，支援終端機和檔案兩種模式
     

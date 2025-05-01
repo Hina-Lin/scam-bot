@@ -1,148 +1,88 @@
 """
-對話格式化工具
+LINE 對話匯出格式驗證工具
 
-此模組提供將對話歷史記錄格式化為不同格式的工具，
-以便於LLM模型閱讀和分析。
+此模組提供驗證輸入文字是否符合 LINE 對話匯出格式基本特徵的工具。
 """
 
-from typing import List, Dict, Any, Optional
-import json
+from utils.logger import get_service_logger
+from utils.error_handler import ValidationError
 import re
-from datetime import datetime
-import xml.etree.ElementTree as ET
-import xml.dom.minidom as minidom
+from typing import List, Union
 
-def format_conversation(messages: List[str], format_type: str = "json", user_id: Optional[str] = None) -> str:
+# 取得模組特定的日誌記錄器
+logger = get_service_logger("formatter")
+
+# 正規表示式，用於基本格式檢查
+DATE_REGEX = re.compile(r'^\d{4}\.\d{2}\.\d{2}\s+[\u4e00-\u9fa5]+$', re.MULTILINE)
+MESSAGE_REGEX = re.compile(r'^\d{1,2}:\d{2}\s+.+\s+.+$', re.MULTILINE) # 簡化，只檢查 時間<空格>發送者<空格>內容 的基本模式
+
+def validate_line_export(text_input: Union[str, List[str]]) -> str:
     """
-    根據指定的格式類型將對話歷史記錄格式化。
-    
+    驗證輸入是否為有效的 LINE 對話匯出格式，並返回原始字串。
+
     Args:
-        messages: 對話歷史記錄列表
-        format_type: 格式類型，可選 "json" 或 "xml"，默認為 "json"
-        user_id: 可選的用戶ID，用於識別主要用戶
-        
+        text_input: 包含 LINE 對話匯出的單一字串，或包含單一該字串的列表。
+
     Returns:
-        str: 格式化後的對話歷史
+        str: 原始的有效 LINE 對話匯出字串。
+
+    Raises:
+        ValidationError: 如果輸入格式無效。
     """
-    if format_type.lower() == "xml":
-        return format_history_as_xml(messages, user_id)
-    else:  # 默認為 JSON
-        return format_history_as_json(messages, user_id)
-    
-def format_history_as_json(messages: List[str], user_id: Optional[str] = None) -> str:
+    # 確保輸入是單一字串
+    if isinstance(text_input, list):
+        if len(text_input) == 1 and isinstance(text_input[0], str):
+            text = text_input[0]
+        else:
+            error_msg = "格式驗證失敗：輸入列表應只包含一個字串元素。"
+            logger.warning(error_msg)
+            raise ValidationError(error_msg, status_code=400)
+    elif isinstance(text_input, str):
+        text = text_input
+    else:
+        error_msg = "格式驗證失敗：輸入必須是字串或包含單一字串的列表。"
+        logger.warning(error_msg)
+        raise ValidationError(error_msg, status_code=400)
+
+    # 執行驗證
+    is_valid = _check_line_format(text)
+
+    if not is_valid:
+        error_msg = "格式驗證失敗：輸入不符合 LINE 對話匯出格式的基本特徵。"
+        logger.warning(error_msg)
+        raise ValidationError(error_msg, status_code=400)
+
+    logger.info("LINE 對話匯出格式驗證通過。")
+    return text # 返回原始字串
+
+def _check_line_format(text: str) -> bool:
     """
-    將對話歷史記錄格式化為 JSON 格式。
-    
+    執行基本的 LINE 格式檢查。
+
     Args:
-        messages: 對話歷史記錄列表
-        user_id: 可選的用戶ID，用於識別主要用戶
-        
+        text: 要檢查的文字。
+
     Returns:
-        str: 格式化為 JSON 字符串的對話歷史
+        bool: 如果格式看起來有效則返回 True，否則返回 False。
     """
-    parsed_messages = []
-    
-    # 嘗試解析每一條消息
-    for message in messages:
-        parsed = _parse_message(message)
-        if parsed:
-            parsed_messages.append(parsed)
-    
-    # 構建最終的 JSON 結構
-    formatted = {
-        "conversation": parsed_messages,
-        "metadata": {
-            "message_count": len(parsed_messages),
-            "current_user_id": user_id,
-            "timestamp": datetime.now().isoformat()
-        }
-    }
-    
-    return json.dumps(formatted, ensure_ascii=False, indent=2)
+    if not text or not isinstance(text, str):
+        logger.warning("輸入文字為空或類型不正確。")
+        return False
 
-def format_history_as_xml(messages: List[str], user_id: Optional[str] = None) -> str:
-    """
-    將對話歷史記錄格式化為 XML 格式。
-    
-    Args:
-        messages: 對話歷史記錄列表
-        user_id: 可選的用戶ID，用於識別主要用戶
-        
-    Returns:
-        str: 格式化為 XML 字符串的對話歷史
-    """
-    root = ET.Element("conversation")
-    
-    # 添加元數據
-    metadata = ET.SubElement(root, "metadata")
-    ET.SubElement(metadata, "message_count").text = str(len(messages))
-    if user_id:
-        ET.SubElement(metadata, "current_user_id").text = user_id
-    ET.SubElement(metadata, "timestamp").text = datetime.now().isoformat()
-    
-    # 添加消息
-    messages_elem = ET.SubElement(root, "messages")
-    
-    for message in messages:
-        parsed = _parse_message(message)
-        if parsed:
-            msg_elem = ET.SubElement(messages_elem, "message")
-            
-            if "date" in parsed:
-                ET.SubElement(msg_elem, "date").text = parsed["date"]
-            
-            if "time" in parsed:
-                ET.SubElement(msg_elem, "time").text = parsed["time"]
-            
-            if "sender" in parsed:
-                ET.SubElement(msg_elem, "sender").text = parsed["sender"]
-            
-            if "content" in parsed:
-                ET.SubElement(msg_elem, "content").text = parsed["content"]
-            
-            if "type" in parsed:
-                ET.SubElement(msg_elem, "type").text = parsed["type"]
-    
-    # 美化 XML 輸出
-    rough_string = ET.tostring(root, encoding='utf-8')
-    reparsed = minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+    # 1. 必須包含換行符 (匯出的基本特徵)
+    if "\n" not in text:
+        logger.warning("輸入缺少換行符，不像 LINE 匯出格式。")
+        return False
 
-def _parse_message(message: str) -> Dict[str, Any]:
-    """
-    嘗試從原始消息字符串中解析出日期、時間、發送者和內容。
-    
-    Args:
-        message: 原始消息字符串
-        
-    Returns:
-        Dict: 包含解析出的字段的字典，如果無法解析則返回空字典
-    """
-    result = {}
-    
-    # 嘗試匹配常見的消息格式
-    
-    # 1. 嘗試匹配日期行（如 "2025.04.22 星期二"）
-    date_match = re.match(r'^(\d{4}\.\d{2}\.\d{2}\s+[\u4e00-\u9fa5]+)$', message)
-    if date_match:
-        result["type"] = "date_marker"
-        result["date"] = date_match.group(1)
-        return result
-    
-    # 2. 嘗試匹配時間、發送者和消息內容（如 "21:49 林國晴 Hina https://docs.google.com/..."）
-    msg_match = re.match(r'^(\d{1,2}:\d{2})\s+([\u4e00-\u9fa5\w\s]+?)\s+(.+)$', message)
-    if msg_match:
-        result["type"] = "message"
-        result["time"] = msg_match.group(1)
-        result["sender"] = msg_match.group(2).strip()
-        result["content"] = msg_match.group(3).strip()
-        return result
-    
-    # 3. 如果無法匹配特定格式，則將整個消息作為內容
-    if message.strip():
-        result["type"] = "unknown"
-        result["content"] = message.strip()
-    
-    return result
+    # 2. 必須包含至少一個日期標記行
+    if not DATE_REGEX.search(text):
+        logger.warning("輸入未找到符合 'YYYY.MM.DD 星期X' 格式的日期標記行。")
+        return False
 
+    # 3. 必須包含至少一個看起來像訊息的行 (時間 發送者 內容)
+    if not MESSAGE_REGEX.search(text):
+        logger.warning("輸入未找到符合 'HH:MM Sender Content' 基本格式的訊息行。")
+        return False
 
+    # 如果所有基本檢查都通過
+    return True

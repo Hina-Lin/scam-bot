@@ -7,7 +7,7 @@
 
 from typing import Dict, Any
 from utils.logger import get_service_logger
-from utils.error_handler import AppError, with_error_handling
+from utils.error_handler import AppError, ValidationError, with_error_handling
 from services.domain.detection.detection_service import DetectionService
 from services.domain.storage_service import StorageService
 from clients.line_client import LineClient
@@ -63,7 +63,8 @@ class ConversationService:
                     raise AppError("文本訊息缺少 'text' 字段")
                 
                 message_text = message["text"]
-                logger.info(f"處理來自 {user_id} 的文字訊息: {message_text}")
+                truncated_text = message_text[:100] + ("..." if len(message_text) > 100 else "")
+                logger.info(f"處理來自 {user_id} 的文字訊息: {truncated_text}")
                 
                 # 呼叫原有的文字訊息處理方法
                 self.process_message(user_id, message_text, reply_token)
@@ -147,6 +148,13 @@ class ConversationService:
                     history,
                     user_profile
                 )
+            except ValidationError as ve:
+                # 如果是驗證錯誤，向用戶致道歉並提供指導
+                logger.warning(f"輸入驗證失敗: {str(ve)}")
+                error_response = "輸入格式無效。請提供 LINE 對話響錄格式的內容，例如由 LINE 對話室匯出的消息歷史。"
+                self.line_client.reply_message(reply_token, error_response)
+                # 直接返回，不繼續處理
+                return
             except Exception as e:
                 # 如果檢測失敗，使用預設安全回應
                 logger.error(f"檢測失敗，使用預設回應: {str(e)}")
@@ -182,13 +190,42 @@ class ConversationService:
         # 從檢測結果中獲取基本回應
         reply = detection_result.get("reply", "")
         
-        # 如果可能是詐騙，添加警告
-        if detection_result.get("label") == "scam" and detection_result.get("confidence", 0) >= 0.6:
-            confidence = detection_result.get("confidence", 0)
+        # 檢查回覆是否上為 JSON 格式，如果是，則提取真正的回覆訊息
+        if isinstance(reply, str) and (reply.startswith('{') or reply.startswith('[')) and ('"reply":' in reply or "'reply':" in reply):
+            try:
+                # 尝試解析為 JSON
+                import json
+                json_data = json.loads(reply)
+                # 如果成功解析且包含 reply 欄位，則使用它
+                if isinstance(json_data, dict) and "reply" in json_data:
+                    reply = json_data["reply"]
+            except Exception as e:
+                # 如果無法解析，則維持原來的回覆
+                logger.warning(f"嘗試解析回覆 JSON 時發生錯誤: {e}")
+                # 包含回覆文字的規律透過文字提取
+                import re
+                reply_match = re.search(r'"reply"\s*:\s*"([^"]+)"', reply)
+                if reply_match:
+                    reply = reply_match.group(1).replace('\\n', '\n')
+        
+        # 如果沒有回覆文字，則使用預設回覆
+        if not reply:
+            reply = "我已分析了您的訊息，未發現明顯的詐騙跡象。"
+            
+        # 取得風險等級
+        risk_level = detection_result.get("risk_level", "")
+        confidence = detection_result.get("confidence", 0)
+        
+        # 簡化回應格式，只在高風險時加入警告
+        if risk_level == "高" and confidence >= 0.6:
             warning = f"[警示] 您可能正被詐騙，請提高警覺（可信度 {confidence * 100:.1f}%）"
-            reply = f"{reply}\n{warning}"
+            reply = f"{warning}\n\n{reply}"
             logger.warning(f"偵測到詐騙訊息，可信度: {confidence * 100:.1f}%")
+        elif risk_level == "中" and confidence >= 0.5:
+            note = f"[提醒] 該訊息有一些可疑跡象，請保持警惕（可信度 {confidence * 100:.1f}%）"
+            reply = f"{note}\n\n{reply}"
+            logger.info(f"訊息有可疑跡象，可信度: {confidence * 100:.1f}%")
         else:
-            logger.info(f"訊息被標記為: {detection_result.get('label', 'unknown')}")
+            logger.info(f"訊息被標記為: {risk_level or detection_result.get('label', 'unknown')}")
             
         return reply

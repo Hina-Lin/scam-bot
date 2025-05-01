@@ -4,8 +4,6 @@
 這是詐騙檢測機器人應用程式的主要入口點。
 它設置了 Flask 應用程式並初始化所有服務和組件。
 """
-import os
-os.environ["PYTHONIOENCODING"] = "utf-8"
 
 from flask import Flask, jsonify
 

@@ -52,6 +52,9 @@ def callback():
 class LineWebhookHandler:
     """LINE webhook 事件的處理器。"""
     
+    # 用於儲存已處理的事件ID，避免重複處理
+    _processed_event_ids = set()
+    
     def __init__(self, conversation_service: ConversationService, channel_secret: str):
         """
         初始化 webhook 處理器。
@@ -82,14 +85,13 @@ class LineWebhookHandler:
             json_data = json.loads(request_data)
             
             # 記錄收到的數據
-            logger.info("接收到的 webhook 資料")
+            logger.info("接收到的 webhook 資料: %s", json.dumps(json_data, indent=2))
             
             # 處理 webhook 中的每個事件
             events = json_data.get("events", [])
             if not events:
                 logger.warning("收到的 webhook 不包含事件")
                 return "OK"
-                
             for event in events:
                 self._process_event(event)
                 
@@ -116,6 +118,46 @@ class LineWebhookHandler:
             LineError: 如果處理過程中發生錯誤
         """
         try:
+            # 檢查事件是否為重新傳送且已處理
+            event_id = event.get("webhookEventId")
+            is_redelivery = event.get("deliveryContext", {}).get("isRedelivery", False)
+            
+            if event_id and event_id in self._processed_event_ids:
+                logger.info(f"跳過已處理的事件: {event_id}")
+                return
+                
+            # 對於重新傳送的事件，記錄但不回應
+            if is_redelivery:
+                logger.warning(f"收到重新傳送的事件 ID: {event_id}，將僅記錄不回應")
+                # 將事件ID添加到已處理集合
+                if event_id:
+                    self._processed_event_ids.add(event_id)
+                    # 維護集合大小，避免無限增長
+                    if len(self._processed_event_ids) > 1000:
+                        self._processed_event_ids.pop()  # 移除最舊的事件ID
+                
+                # 確認事件格式
+                if "type" not in event:
+                    raise LineError("事件缺少 'type' 字段", status_code=400)
+                    
+                # 只處理訊息事件，其它類型的事件記錄但不處理
+                if event["type"] == "message":
+                    # 基本驗證
+                    if "userId" not in event.get("source", {}):
+                        raise LineError("事件來源缺少 'userId' 字段", status_code=400)
+                    
+                    # 取出基本訊息
+                    user_id = event["source"]["userId"]
+                    message = event["message"]
+                    
+                    # 只記錄訊息，不進行回應
+                    logger.info(f"記錄重新傳送的訊息，來自 {user_id} 的 {message['type']} 類型訊息")
+                    
+                    # 只儲存訊息，不處理回應
+                    if message["type"] == "text" and "text" in message:
+                        self.conversation_service.storage_service.add_message(user_id, message["text"])
+                return
+            
             # 確認事件格式
             if "type" not in event:
                 raise LineError("事件缺少 'type' 字段", status_code=400)
@@ -135,6 +177,13 @@ class LineWebhookHandler:
                 
                 # 記錄事件
                 logger.info(f"收到來自 {user_id} 的 {message['type']} 類型訊息")
+                
+                # 將事件ID添加到已處理集合
+                if event_id:
+                    self._processed_event_ids.add(event_id)
+                    # 維護集合大小，避免無限增長
+                    if len(self._processed_event_ids) > 1000:
+                        self._processed_event_ids.pop()  # 移除最舊的事件ID
                 
                 # 將整個事件轉發到對話服務，由服務層處理不同類型的訊息
                 self.conversation_service.process_event(

@@ -53,8 +53,12 @@ class DetectionService:
             Exception: 如果檢測過程中發生錯誤
         """
         try:
-            return self.strategy.analyze(message_text, user_id, chat_history, user_profile)
+            # 呼叫當前策略的 analyze 方法
+            # 注意：兩個策略 (Local 和 API) 現在都不接受 chat_history
+            logger.debug(f"呼叫策略 {type(self.strategy).__name__} 的 analyze 方法")
+            return self.strategy.analyze(message_text, user_id=user_id, user_profile=user_profile)
         except Exception as e:
-            logger.error(f"檢測過程中發生錯誤: {str(e)}")
+            # 記錄詳細錯誤，包括策略類型
+            strategy_type = type(self.strategy).__name__
+            logger.error(f"使用 {strategy_type} 進行檢測時發生錯誤: {str(e)}", exc_info=True)
             raise
-

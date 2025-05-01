@@ -24,16 +24,15 @@ class ApiDetectionStrategy(DetectionStrategy):
         self.analysis_client = analysis_client
     
     @with_error_handling(reraise=True)
-    def analyze(self, message_text, user_id=None, chat_history=None, user_profile=None):
+    def analyze(self, message_text, user_id=None, user_profile=None):
         """
         使用外部 API 分析訊息。
-        
+
         Args:
             message_text: 要分析的文字
             user_id: 可選的使用者 ID 作為上下文
-            chat_history: 可選的聊天歷史作為上下文
             user_profile: 可選的使用者資料
-            
+
         Returns:
             dict: 包含標籤、可信度和回覆的分析結果
             
@@ -48,14 +47,13 @@ class ApiDetectionStrategy(DetectionStrategy):
             logger.error(error_msg)
             raise DetectionError(error_msg, status_code=400)
         
-        # 準備 API 的數據
+        # 準備 API 的數據 (不再包含 chat_history)
         analysis_data = {
             "user_id": user_id,
             "message": message_text,
-            "chat_history": chat_history,
             "user_profile": user_profile
         }
-        
+
         try:
             # 呼叫外部 API
             return self.analysis_client.analyze_text(analysis_data)

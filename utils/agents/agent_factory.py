@@ -71,28 +71,39 @@ def create_agent(
                 except json.JSONDecodeError:
                     # 如果無法解析，將整個字符串作為消息內容
                     conv_dict = {
-                        "conversation": [{"type": "unknown", "content": conversation}]
+                        "conversation": [{"type": "user_message", "content": conversation, "source": "user"}]
                     }
             else:
                 # 已經是字典，直接使用
                 conv_dict = conversation
                 
-            # 取出最後一則 user 訊息
+            # 取出最新的使用者訊息
             msgs = conv_dict.get("conversation", [])
-            logger.debug(f"對話歷史: {msgs}")
-            last = None
             
-            # 優先使用最後一條消息
-            if msgs:
-                last_msg = msgs[-1]
-                if isinstance(last_msg, dict):
-                    last = last_msg.get("content", "")
+            # 取出用戶的主要訊息，移除可能的重複
+            user_messages = []
+            seen_contents = set()
+            
+            for msg in msgs:
+                if isinstance(msg, dict):
+                    # 如果是使用者訊息或不知類型的訊息
+                    if msg.get("source") == "user" or msg.get("type") == "user_message" or msg.get("type") == "unknown":
+                        content = msg.get("content", "")
+                        if content and content not in seen_contents:
+                            seen_contents.add(content)
+                            user_messages.append(content)
+            
+            # 組合使用者訊息，優先使用最後一條
+            if user_messages:
+                last = user_messages[-1]  # 使用最後一條使用者訊息
+            else:
+                # 如果沒有辨識到使用者訊息，預設使用最後一條消息
+                if msgs and isinstance(msgs[-1], dict):
+                    last = msgs[-1].get("content", "")
+                elif msgs:
+                    last = str(msgs[-1])
                 else:
-                    last = str(last_msg)
-            
-            # 如果沒有有效的最後消息，使用整個對話
-            if not last:
-                last = str(conversation)
+                    last = str(conversation)
             
             # 包裝為 Gemini/Google GenAI 要求的 Content
             from google.genai.types import Content, Part
@@ -186,10 +197,7 @@ def _get_instruction(agent_type: str = "scam_detection") -> str:
 {{
   "risk_level": "低/中/高",
   "confidence": 0.0-1.0,
-  "suspicious_indicators": ["列出所有可疑指標"],
-  "scam_stage": "如果檢測到詐騙，指出處於哪個詐騙階段",
-  "analysis": "詳細分析說明",
-  "recommendation": "給用戶的建議",
+  "brief_analysis": "簡短分析",
   "reply": "直接給用戶的回覆訊息"
 }}
 

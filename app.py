@@ -17,8 +17,8 @@ from utils.error_handler import AppError, ConfigError
 
 # 導入服務
 from services.conversation_service import ConversationService
-from services.detection_service import DetectionService
-from services.storage_service import StorageService
+from services.domain.detection_service import DetectionService
+from services.domain.storage_service import StorageService
 
 # 導入客戶端
 from clients.line_client import LineClient

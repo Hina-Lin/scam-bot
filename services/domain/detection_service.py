@@ -6,8 +6,8 @@
 """
 
 from utils.logger import get_service_logger
-from .domain.local_detection import LocalDetectionStrategy
-from .domain.api_detection import ApiDetectionStrategy
+from .local_detection import LocalDetectionStrategy
+from .api_detection import ApiDetectionStrategy
 
 # 取得模組特定的日誌記錄器
 logger = get_service_logger("detection")

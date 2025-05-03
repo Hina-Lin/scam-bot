@@ -3,6 +3,9 @@ import json
 import requests
 import logging
 import traceback
+import os
+from dotenv import load_dotenv
+
 
 
 logging.basicConfig(
@@ -14,9 +17,10 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-# === LINE Bot 憑證資訊 ===
-CHANNEL_ACCESS_TOKEN = "cb4k7eDRiCopTS7yegkIq0KLt+n+4tKbTZFlANL8lYaFmMQD6IUjIq17GMPvut+7U4vchoFiTgoLEmYt1Fa4ZpQncZgb00eItntfJ9VHkM+0HQkn6V1PRxSrH0mBxHQr+D9K9J7cml6xExVQuRN70gdB04t89/1O/w1cDnyilFU="
-CHANNEL_SECRET = "fb253dc72c8c3f018d1f814ed0833318"
+load_dotenv()
+
+CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
+CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
 
 # === 模擬詐騙分析結果 ===
 def analyze_text(text):
@@ -176,5 +180,4 @@ def index():
     return "Hello, Scam Bot!"
 
 if __name__ == "__main__":
-    import os
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
